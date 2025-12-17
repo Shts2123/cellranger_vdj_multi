@@ -57,13 +57,19 @@ workflow cellranger_multi {
     }
 
     Map[String, String] acronym2uri = read_map(acronym_file)
-    # If reference is a URI
+
+    # If reference is a URI (tarball) or an acronym
     Boolean is_genome_uri = sub(genome, "^.+\\.(tgz|gz)$", "URI") == "URI"
     File genome_file = (if is_genome_uri then genome else acronym2uri[genome])
 
-    # If vdj reference is a URI
+    # If vdj reference is a URI (tarball) or an acronym; "null" => null_file
     Boolean is_vdj_ref_uri = sub(vdj_ref, "^.+\\.(tgz|gz)$", "URI") == "URI"
-    File vdj_ref_file = (if vdj_ref != "null" then (if is_vdj_ref_uri then vdj_ref else acronym2uri[vdj_ref]) else acronym2uri["null_file"])
+    File vdj_ref_file = (
+        if vdj_ref != "null" then
+            (if is_vdj_ref_uri then vdj_ref else acronym2uri[vdj_ref])
+        else
+            acronym2uri["null_file"]
+    )
 
     call run_cellranger_multi {
         input:
@@ -129,8 +135,17 @@ task run_cellranger_multi {
         export TMPDIR=/tmp
         export BACKEND=~{backend}
         monitor_script.sh > monitoring.log &
+
+        # Unpack GEX reference into genome_dir
         mkdir -p genome_dir
         tar xf ~{genome_file} -C genome_dir --strip-components 1
+
+        # Unpack VDJ reference into vdj_dir, but only if vdj_ref_file is not the "null" placeholder.
+        # The "null" file used by Cumulus has basename "null", matching is_null_file() below.
+        if [ "$(basename ~{vdj_ref_file})" != "null" ]; then
+          mkdir -p vdj_dir
+          tar xf ~{vdj_ref_file} -C vdj_dir --strip-components 1
+        fi
 
         python <<CODE
         import re
@@ -229,8 +244,9 @@ task run_cellranger_multi {
             #################
             # [vdj] section #
             #################
-            if not is_null_file('~{vdj_ref_file}'):
-                fout.write('\n[vdj]\nreference,~{vdj_ref_file}\n')
+            # Use the unpacked VDJ directory (vdj_dir) instead of the tar.gz path.
+            if os.path.isdir('vdj_dir'):
+                fout.write('\n[vdj]\nreference,' + os.path.abspath('vdj_dir') + '\n')
                 if not is_null_file(vdj_file):
                     fout.write('inner-enrichment-primers,' + vdj_file + '\n')
 
@@ -311,8 +327,15 @@ task run_cellranger_multi {
                     with open(flex_file, 'r') as fin:
                         write_csv_wise(['sample_id', 'probe_barcode_ids', 'description'], fin, fout)
 
-            if (not has_ocm) and (not has_hto) and (not has_cmo) and (not has_flex):
-                raise Exception("Cannot locate OCM, HTO, CMO, or Flex sample file!")
+            # IMPORTANT CHANGE:
+            # Previously this block *forced* an OCM/HTO/CMO/Flex sample file and raised:
+            #   Exception("Cannot locate OCM, HTO, CMO, or Flex sample file!")
+            # This broke simple RNA+VDJ non-multiplexed runs.
+            # We now ALLOW runs with no [samples] section (Cell Ranger multi supports that),
+            # so we DO NOT raise any exception here.
+            #
+            # if (not has_ocm) and (not has_hto) and (not has_cmo) and (not has_flex):
+            #     raise Exception("Cannot locate OCM, HTO, CMO, or Flex sample file!")
 
         mem_size = re.findall(r"\d+", "~{memory}")[0]
         call_args = ['cellranger', 'multi', '--id=results', '--csv=multi.csv', '--jobmode=local', '--localcores=~{num_cpu}', '--localmem='+mem_size]
