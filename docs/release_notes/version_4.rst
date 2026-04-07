@@ -1,3 +1,12 @@
+4.0.3 :small:`Apr 6, 2026`
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* Cellranger workflow:
+    * Fix a bug in processing 10x On-Chip Multiplexing (OCM) data.
+    * Support input FASTQ files in unzipped ``.fastq`` format.
+* Demultiplexing workflow:
+    * For Souporcell, add *souporcell_umi_tag* to allow users specify a custom UMI tag other than the default ``UB`` for their data.
+
 4.0.2 :small:`Jan 6, 2026`
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
