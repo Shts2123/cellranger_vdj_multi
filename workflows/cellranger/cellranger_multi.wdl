@@ -58,7 +58,7 @@ workflow cellranger_multi {
         String backend = "gcp"
     }
 
-    Boolean is_flex = sub(input_data_types, ".*frp.*", "Flex") == "Flex"
+    Boolean is_flex = sub(input_data_types, ".*frp.*", "Flex") == "Flex" || sub(input_data_types, ".*flex.*", "Flex") == "Flex"
 
     Map[String, String] acronym2uri = read_map(acronym_file)
     # If reference is a URI
@@ -218,7 +218,7 @@ task run_cellranger_multi {
             #############################
             fout.write('[gene-expression]\n')
 
-            if ('~{is_flex}' == 'false') or ('~{no_bam}' == 'false' and '~{is_flex}' == 'true') or (version.parse(cr_version) < version.parse('8.0.0')):
+            if ('~{is_flex}' == 'false') or (('~{is_flex}' == 'true') and (('~{no_bam}' == 'false') or (version.parse(cr_version) < version.parse('8.0.0')))):
                 fout.write('reference,' + os.path.abspath('genome_dir') + '\n')
 
             if is_null_file('~{probe_set_file}'):  # GEX case
