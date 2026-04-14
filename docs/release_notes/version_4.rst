@@ -1,3 +1,11 @@
+4.0.4 :small:`Apr 14, 2026`
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* Cellranger workflow:
+    * Support Flex v2 data processing. Users need to specify ``flex-v2`` in ``DataType`` column of the input sample sheet. ``flex-v1`` and ``frp`` are for Flex v1.
+* SmartSeq2 workflow:
+    * Default resources are stored in ``gs://cumulus-ref`` bucket in GCP region ``us-central1``.
+
 4.0.3 :small:`Apr 6, 2026`
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
