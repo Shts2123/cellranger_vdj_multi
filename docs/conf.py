@@ -20,13 +20,13 @@
 # -- Project information -----------------------------------------------------
 
 project = 'Cumulus'
-copyright = '2021 - 2025 Genentech, Inc. All rights reserved.'
+copyright = '2021 - 2026 Genentech, Inc. All rights reserved.'
 author = 'Yiming Yang, Joshua Gould and Bo Li'
 
 # The short X.Y version
 version = '4.0'
 # The full version, including alpha/beta/rc tags
-release = '4.0.1'
+release = '4.0.4'
 
 
 # -- General configuration ---------------------------------------------------
