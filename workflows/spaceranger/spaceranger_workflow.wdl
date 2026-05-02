@@ -34,8 +34,8 @@ workflow spaceranger_workflow {
         # Hard trim the input Read 2 to this length before analysis
         Int? r2_length
 
-        # Space Ranger version: 3.1.3, 3.0.1
-        String spaceranger_version = "3.1.3"
+        # Space Ranger version: 4.0.1, 3.1.3, 3.0.1
+        String spaceranger_version = "4.0.1"
 
         # Which docker registry to use: quay.io/cumulus (default) or cumulusprod
         String docker_registry = "quay.io/cumulus"
@@ -103,6 +103,7 @@ workflow spaceranger_workflow {
                 slidefile = sample_row[10],
                 reorient_images = reorient_images,
                 loupe_alignment = sample_row[11],
+                unknown_slide = unknown_slide,
                 no_bam = no_bam,
                 secondary = secondary,
                 r1_length = r1_length,

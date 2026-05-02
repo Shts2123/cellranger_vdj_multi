@@ -69,13 +69,13 @@ workflow cellranger_workflow {
         # Index TSV file
         File acronym_file = "gs://cumulus-ref/resources/cellranger/index.tsv"
 
-        # 9.0.1, 8.0.1, 7.2.0
-        String cellranger_version = "9.0.1"
+        # 10.0.0, 9.0.1, 8.0.1, 7.2.0
+        String cellranger_version = "10.0.0"
         String cumulus_feature_barcoding_version = "2.0.0"
-        # 2.1.0, 2.0.0
-        String cellranger_atac_version = "2.1.0"
-        # 2.0.2.strato, 2.0.2.custom-max-cell, 2.0.2, 2.0.1, 2.0.0
-        String cellranger_arc_version = "2.0.2.strato"
+        # 2.2.0, 2.1.0, 2.0.0
+        String cellranger_atac_version = "2.2.0"
+        # 2.1.0, 2.0.2.strato, 2.0.2.custom-max-cell, 2.0.2, 2.0.1, 2.0.0
+        String cellranger_arc_version = "2.1.0"
 
         # Which docker registry to use: quay.io/cumulus (default) or cumulusprod
         String docker_registry = "quay.io/cumulus"
@@ -142,7 +142,6 @@ workflow cellranger_workflow {
             input_csv_file = input_csv_file,
             output_dir = output_directory_stripped,
             config_version = config_version,
-            docker_registry = docker_registry_stripped,
             zones = zones,
             preemptible = preemptible,
             awsQueueArn = awsQueueArn,
@@ -183,7 +182,6 @@ workflow cellranger_workflow {
                 summaries = cellranger_count.output_metrics_summary,
                 sample_ids = cellranger_count.output_count_directory,
                 config_version = config_version,
-                docker_registry = docker_registry_stripped,
                 zones = zones,
                 preemptible = preemptible,
                 awsQueueArn = awsQueueArn,
@@ -220,7 +218,6 @@ workflow cellranger_workflow {
                 summaries = cellranger_vdj.output_metrics_summary,
                 sample_ids = cellranger_vdj.output_vdj_directory,
                 config_version = config_version,
-                docker_registry = docker_registry_stripped,
                 zones = zones,
                 preemptible = preemptible,
                 awsQueueArn = awsQueueArn,
@@ -265,6 +262,7 @@ workflow cellranger_workflow {
                     output_directory = output_directory_stripped,
                     genome = generate_count_config.sample2ref[sample_id],
                     acronym_file = acronym_file,
+                    secondary = secondary,
                     force_cells = force_cells,
                     dim_reduce = atac_dim_reduce,
                     peaks = peaks,
@@ -286,7 +284,6 @@ workflow cellranger_workflow {
                 summaries = cellranger_atac_count.output_metrics_summary,
                 sample_ids = cellranger_atac_count.output_count_directory,
                 config_version = config_version,
-                docker_registry = docker_registry_stripped,
                 zones = zones,
                 preemptible = preemptible,
                 awsQueueArn = awsQueueArn,
@@ -307,6 +304,7 @@ workflow cellranger_workflow {
                     genome = generate_count_config.sample2ref[link_id],
                     gex_exclude_introns = arc_gex_exclude_introns,
                     no_bam = no_bam,
+                    secondary = secondary,
                     min_atac_count = arc_min_atac_count,
                     min_gex_count = arc_min_gex_count,
                     peaks = peaks,
@@ -327,7 +325,6 @@ workflow cellranger_workflow {
                 summaries = cellranger_arc_count.output_metrics_summary,
                 sample_ids = cellranger_arc_count.output_count_directory,
                 config_version = config_version,
-                docker_registry = docker_registry_stripped,
                 zones = zones,
                 preemptible = preemptible,
                 awsQueueArn = awsQueueArn,
@@ -343,6 +340,7 @@ workflow cellranger_workflow {
                     input_samples = generate_count_config.link2sample[link_id],
                     input_fastqs_directories = generate_count_config.sample2dir[link_id],
                     input_data_types = generate_count_config.sample2datatype[link_id],
+                    input_data_chemistries = generate_count_config.sample2chemistry[link_id],
                     input_aux = generate_count_config.sample2aux[link_id],
                     output_directory = output_directory_stripped,
                     acronym_file = acronym_file,
@@ -401,7 +399,6 @@ workflow cellranger_workflow {
                 summaries = cellranger_count_fbc.output_metrics_summary,
                 sample_ids = cellranger_count_fbc.output_count_directory,
                 config_version = config_version,
-                docker_registry = docker_registry_stripped,
                 zones = zones,
                 preemptible = preemptible,
                 awsQueueArn = awsQueueArn,
@@ -428,7 +425,6 @@ task generate_count_config {
         File input_csv_file
         String output_dir
         String config_version
-        String docker_registry
         String zones
         Int preemptible
         String awsQueueArn
@@ -468,7 +464,7 @@ task generate_count_config {
 
         for idx, row in df.iterrows():
             row['Flowcell'] = re.sub('/+$', '', row['Flowcell'])
-            if row['DataType'] not in ['rna', 'vdj', 'vdj_t', 'vdj_b', 'vdj_t_gd', 'adt', 'citeseq', 'cmo', 'crispr', 'atac', 'hashing', 'frp']:
+            if row['DataType'] not in ['rna', 'vdj', 'vdj_t', 'vdj_b', 'vdj_t_gd', 'adt', 'citeseq', 'cmo', 'crispr', 'atac', 'hashing', 'frp', 'flex-v1', 'flex-v2']:
                 print("Unknown DataType " + row['DataType'] + " is detected!", file = sys.stderr)
                 sys.exit(1)
             if re.search('[^a-zA-Z0-9_-]', row['Sample']) is not None:
@@ -489,6 +485,7 @@ task generate_count_config {
             link2sample = defaultdict(list)
             link2dir = defaultdict(list)
             link2dt = defaultdict(list)
+            link2chem = defaultdict(list)
             link2aux = defaultdict(list)
             link2ref = defaultdict(set)
             link2vdj_ref = defaultdict(set)
@@ -504,6 +501,8 @@ task generate_count_config {
 
             # Load Reference to Flex Probe Set mapping
             df_flex = pd.read_csv('~{flex_probset_file}', header=None, sep='\t')
+            df_flex["version"] = df_flex[0].apply(lambda s: s.split('_')[1] if '_' in s else "v1")
+            df_flex["reference"] = df_flex[0].apply(lambda s: s.split('_')[0])
 
             for sample_id in df['Sample'].unique():
                 df_local = df.loc[df['Sample'] == sample_id].dropna(axis=1, how='all')  # Drop columns with only NAs
@@ -522,14 +521,18 @@ task generate_count_config {
                 reference = df_local['Reference'].iat[0]
 
                 probe_set_file = '~{null_file}'
-                if datatype == 'frp':
+                if datatype in ['frp', 'flex-v1', 'flex-v2']:
+                    flex_version = datatype.split('-')[1] if '-' in datatype else "v1"
                     if reference == 'null':
                         print("A genome reference must be specified for Flex sample '" + sample_id + "'!")
                         sys.exit(1)
-                    if reference not in df_flex[0].values:
-                        print("The given genome reference '" + reference + "' doesn't have an associated Flex probe set!")
+                    if (reference not in df_flex["reference"].values) or (flex_version not in df_flex["version"].values):
+                        print("The given genome reference '" + reference + "' with Flex '" + flex_version + "' doesn't have an associated Probeset!")
                         sys.exit(1)
-                    probe_set_file = df_flex.loc[df_flex[0]==reference, 1].iat[0]
+                    probe_set_file = df_flex.loc[(df_flex["reference"]==reference)&(df_flex["version"]==flex_version), 1].iat[0]
+
+                    # Unify the Flex DataType key for simplicity
+                    datatype = 'frp'
 
                 aux_file = '~{null_file}'
                 if datatype in ['rna', 'adt', 'citeseq', 'hashing', 'cmo', 'crispr', 'frp', 'vdj', 'vdj_t', 'vdj_b', 'vdj_t_gd']:
@@ -557,11 +560,15 @@ task generate_count_config {
                         link = sample_id
 
                     if pd.notna(link) and (link != ''):
+                        chemistry = df_local['Chemistry'].iat[0]
+                        no_chem = False
+
                         multiomics[link].add(datatype)
                         size = dirs.size
                         link2sample[link].extend([sample_id] * size)
                         link2dir[link].extend(list(dirs))
                         link2dt[link].extend([datatype] * size)
+                        link2chem[link].extend([chemistry] * size)
                         link2aux[link].extend([aux_file] * size)
                         if reference != 'null':
                             if datatype in ['vdj', 'vdj_t', 'vdj_b', 'vdj_t_gd']:  # Keep VDJ ref separate in case of OCM/HTO with VDJ
@@ -570,6 +577,8 @@ task generate_count_config {
                                 link2ref[link].add(reference)
                         if (probe_set_file != '~{null_file}') or (len(link2probeset[link]) == 0):
                             link2probeset[link].add(probe_set_file)
+                            if len(link2probeset[link]) > 1:
+                                link2probeset[link] = [f for f in link2probeset[link] if f != '~{null_file}']    # Clear the null placeholder if exists.
                         continue
 
                 datatype2fo[datatype].write(sample_id + '\n')
@@ -625,6 +634,7 @@ task generate_count_config {
 
                 fom_s2dir.write(link_id + '\t' + ','.join(link2dir[link_id]) + '\n')
                 fom_s2type.write(link_id + '\t' + ','.join(link2dt[link_id]) + '\n')
+                fom_s2chem.write(link_id + '\t' + ','.join(link2chem[link_id]) + '\n')
                 fom_l2sample.write(link_id + '\t' + ','.join(link2sample[link_id]) + '\n')
 
                 if 'atac' in multiomics[link_id]:
@@ -706,7 +716,7 @@ task generate_count_config {
     }
 
     runtime {
-        docker: "~{docker_registry}/config:~{config_version}"
+        docker: "quay.io/cumulus/config:~{config_version}"
         zones: zones
         preemptible: preemptible
         queueArn: awsQueueArn
@@ -718,7 +728,6 @@ task collect_summaries {
         Array[File] summaries
         Array[String] sample_ids
         String config_version
-        String docker_registry
         String zones
         Int preemptible
         String awsQueueArn
@@ -752,7 +761,7 @@ task collect_summaries {
     }
 
     runtime {
-        docker: "~{docker_registry}/config:~{config_version}"
+        docker: "quay.io/cumulus/config:~{config_version}"
         zones: zones
         preemptible: preemptible
         queueArn: awsQueueArn
